@@ -111,6 +111,10 @@ export default function DashboardPage() {
               className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               Revisar Erros
             </Link>
+            <Link href="/history"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Histórico
+            </Link>
             <Link href="/admin/upload"
               className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               Admin
@@ -375,7 +379,10 @@ export default function DashboardPage() {
             {/* ── Recent Activity (detailed) ── */}
             {insights.recent_activity.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold text-foreground mb-3">Últimas Respostas</h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-semibold text-foreground">Últimas Respostas</h2>
+                  <Link href="/history" className="text-xs text-primary hover:underline">Ver histórico completo →</Link>
+                </div>
                 <div className="rounded-xl border border-border overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
