@@ -69,7 +69,107 @@ type InsightsData = {
     time_taken_seconds: number | null;
     timestamp:          string;
   }>;
+  daily_streak: number;
+  today_count:  number;
 };
+
+// ── Exam Countdown (localStorage-based) ──────────────────────────────────────
+
+const DAILY_GOAL = 10; // questions/day target
+
+type ExamDate = { examId: string; examDate: string };
+
+function ExamCountdown() {
+  const [dates,   setDates]   = useState<ExamDate[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [newExam, setNewExam] = useState('');
+  const [newDate, setNewDate] = useState('');
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('edtechia_exam_dates');
+      if (raw) setDates(JSON.parse(raw));
+    } catch { /* noop */ }
+  }, []);
+
+  const save = (next: ExamDate[]) => {
+    setDates(next);
+    localStorage.setItem('edtechia_exam_dates', JSON.stringify(next));
+  };
+
+  const add = () => {
+    if (!newExam || !newDate) return;
+    const next = [...dates.filter(d => d.examId !== newExam), { examId: newExam, examDate: newDate }];
+    save(next);
+    setNewExam(''); setNewDate(''); setEditing(false);
+  };
+
+  const remove = (examId: string) => save(dates.filter(d => d.examId !== examId));
+
+  const daysUntil = (dateStr: string) =>
+    Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  if (dates.length === 0 && !editing) {
+    return (
+      <button onClick={() => setEditing(true)}
+        className="text-xs text-primary hover:underline">
+        + Definir data do exame para contagem regressiva
+      </button>
+    );
+  }
+
+  return (
+    <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-foreground">Contagem Regressiva</span>
+        <button onClick={() => setEditing(e => !e)}
+          className="text-xs text-primary hover:underline">
+          {editing ? 'Fechar' : '+ Adicionar prova'}
+        </button>
+      </div>
+      {/* Countdowns */}
+      {dates.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {dates.map(d => {
+            const days = daysUntil(d.examDate);
+            const exam = EXAM_LIST.find(e => e.id === d.examId);
+            const color = days <= 14 ? 'text-red-400 border-red-500/30 bg-red-500/5'
+              : days <= 30 ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/5'
+              : 'text-green-400 border-green-500/30 bg-green-500/5';
+            return (
+              <div key={d.examId} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm ${color}`}>
+                <span className="font-medium">{exam?.title ?? d.examId}</span>
+                <span className="font-black tabular-nums text-base">
+                  {days < 0 ? 'Passou' : `${days}d`}
+                </span>
+                <button onClick={() => remove(d.examId)}
+                  className="text-muted-foreground hover:text-foreground ml-1 text-xs">
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {/* Add form */}
+      {editing && (
+        <div className="flex flex-wrap items-end gap-2 pt-1">
+          <select value={newExam} onChange={e => setNewExam(e.target.value)}
+            className="bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+            <option value="">Escolha a prova</option>
+            {EXAM_LIST.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+          </select>
+          <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
+            className="bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+          <button onClick={add} disabled={!newExam || !newDate}
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors">
+            Salvar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -160,6 +260,78 @@ export default function DashboardPage() {
           </div>
         ) : insights && (
           <>
+            {/* ── Exam Countdown ── */}
+            <ExamCountdown />
+
+            {/* ── Daily streak + goal ── */}
+            {(insights.daily_streak > 0 || insights.today_count >= 0) && (
+              <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-border bg-card">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">&#128293;</span>
+                  <div>
+                    <span className="text-sm font-bold text-foreground">{insights.daily_streak} dias seguidos</span>
+                    <p className="text-xs text-muted-foreground">streak de estudo</p>
+                  </div>
+                </div>
+                <div className="h-6 w-px bg-border hidden sm:block" />
+                <div className="flex-1 min-w-[160px]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">Meta diária</span>
+                    <span className="text-xs font-semibold text-foreground tabular-nums">
+                      {Math.min(insights.today_count, DAILY_GOAL)}/{DAILY_GOAL} questões
+                    </span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        insights.today_count >= DAILY_GOAL ? 'bg-green-500' : 'bg-primary'
+                      }`}
+                      style={{ width: `${Math.min(100, (insights.today_count / DAILY_GOAL) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+                {insights.today_count >= DAILY_GOAL && (
+                  <span className="text-xs font-semibold text-green-400">Meta atingida!</span>
+                )}
+              </div>
+            )}
+
+            {/* ── Exam Countdown ── */}
+            <ExamCountdown />
+
+            {/* ── Daily streak + goal ── */}
+            {(insights.daily_streak > 0 || insights.today_count >= 0) && (
+              <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-border bg-card">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">&#128293;</span>
+                  <div>
+                    <span className="text-sm font-bold text-foreground">{insights.daily_streak} dias seguidos</span>
+                    <p className="text-xs text-muted-foreground">streak de estudo</p>
+                  </div>
+                </div>
+                <div className="h-6 w-px bg-border hidden sm:block" />
+                <div className="flex-1 min-w-[160px]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">Meta diária</span>
+                    <span className="text-xs font-semibold text-foreground tabular-nums">
+                      {Math.min(insights.today_count, DAILY_GOAL)}/{DAILY_GOAL} questões
+                    </span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        insights.today_count >= DAILY_GOAL ? 'bg-green-500' : 'bg-primary'
+                      }`}
+                      style={{ width: `${Math.min(100, (insights.today_count / DAILY_GOAL) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+                {insights.today_count >= DAILY_GOAL && (
+                  <span className="text-xs font-semibold text-green-400">Meta atingida!</span>
+                )}
+              </div>
+            )}
+
             {/* ── Spaced Repetition Alert ── */}
             {insights.spaced_repetition.length > 0 && (
               <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-2">

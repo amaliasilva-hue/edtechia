@@ -212,11 +212,42 @@ export function QuestionCard({
   onNext,
 }: QuestionCardProps) {
   const [pendingAnswer, setPendingAnswer] = useState<string | null>(null);
+  const [deepExplain, setDeepExplain]     = useState<string | null>(null);
+  const [explainLoading, setExplainLoading] = useState(false);
 
-  // Reset pending when question changes (selected goes null = new question)
+  // Reset pending + deep explain when question changes
   useEffect(() => {
-    if (selected === null) setPendingAnswer(null);
+    if (selected === null) {
+      setPendingAnswer(null);
+      setDeepExplain(null);
+    }
   }, [selected, question]);
+
+  const handleExplainMore = async () => {
+    if (explainLoading || deepExplain) return;
+    setExplainLoading(true);
+    try {
+      const res = await fetch('/api/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question_text:  question.question_en,
+          options:        question.options_en,
+          user_answer:    selected,
+          correct_letter: question.correct_letter,
+          explanation_pt: question.explanation_pt,
+          topic:          topicName,
+          difficulty,
+        }),
+      });
+      const data = await res.json();
+      setDeepExplain(data.explanation ?? 'Falha ao gerar explicação.');
+    } catch {
+      setDeepExplain('Falha ao gerar explicação.');
+    } finally {
+      setExplainLoading(false);
+    }
+  };
 
   const handleOptionClick = (letter: string) => {
     if (selected !== null) return; // already confirmed
@@ -350,13 +381,39 @@ export function QuestionCard({
 
       {/* Explanation */}
       {selected && (
-        <div className="p-5 rounded-xl border border-border bg-secondary/30">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        <div className="p-5 rounded-xl border border-border bg-secondary/30 space-y-3">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Explicação (PT)
           </h3>
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
             {question.explanation_pt}
           </p>
+
+          {/* Deep explanation */}
+          {deepExplain ? (
+            <div className="pt-3 border-t border-border space-y-2">
+              <span className="text-xs font-semibold text-primary uppercase tracking-wider">Explicação aprofundada</span>
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{deepExplain}</p>
+            </div>
+          ) : (
+            <button
+              onClick={handleExplainMore}
+              disabled={explainLoading}
+              className="flex items-center gap-2 text-xs text-primary hover:underline disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              {explainLoading ? (
+                <>
+                  <span className="w-3 h-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin shrink-0" />
+                  Gerando explicação aprofundada...
+                </>
+              ) : (
+                <>
+                  <span className="text-base leading-none">✨</span>
+                  Explicar mais a fundo com IA
+                </>
+              )}
+            </button>
+          )}
         </div>
       )}
 

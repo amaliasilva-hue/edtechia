@@ -65,6 +65,10 @@ type SpacedRepRow = {
   last_practice:    string;
 };
 
+type DailyStreakRow = {
+  streak_days: number;
+};
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -229,6 +233,35 @@ export async function GET() {
       { email: userEmail }
     );
 
+    // ── Daily streak (consecutive days answered) ────────────────────────────
+    const [streakRow] = await runQuery<DailyStreakRow>(
+      `WITH days AS (
+         SELECT DISTINCT DATE(timestamp, 'America/Sao_Paulo') AS d
+         FROM ${fqt}
+         WHERE user_email = @email
+       ),
+       numbered AS (
+         SELECT d,
+                DATE_DIFF(CURRENT_DATE('America/Sao_Paulo'), d, DAY) AS days_ago,
+                ROW_NUMBER() OVER (ORDER BY d DESC) AS rn
+         FROM days
+       ),
+       consecutive AS (
+         SELECT d FROM numbered WHERE days_ago = rn - 1
+       )
+       SELECT COUNT(*) AS streak_days FROM consecutive`,
+      { email: userEmail }
+    );
+
+    // ── Questions answered today ────────────────────────────────────────────
+    const [todayRow] = await runQuery<{ today_count: number }>(
+      `SELECT COUNT(*) AS today_count
+       FROM ${fqt}
+       WHERE user_email = @email
+         AND DATE(timestamp, 'America/Sao_Paulo') = CURRENT_DATE('America/Sao_Paulo')`,
+      { email: userEmail }
+    );
+
     return NextResponse.json({
       overall_accuracy:       overallAccuracy,
       total_questions:        totalQuestions,
@@ -242,6 +275,8 @@ export async function GET() {
       spaced_repetition:      spacedRepetition,
       ai_quality:             aiQuality,
       recent_activity:        recentActivity,
+      daily_streak:           Number(streakRow?.streak_days ?? 0),
+      today_count:            Number(todayRow?.today_count ?? 0),
     });
   } catch (err) {
     console.error('[insights] BigQuery query failed:', err);
