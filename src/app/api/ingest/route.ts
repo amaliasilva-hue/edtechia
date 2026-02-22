@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
 
   const file     = formData.get('file') as File | null;
   const examName = (formData.get('exam_name') as string | null)?.trim();
+  const docType  = (formData.get('doc_type')  as string | null)?.trim() ?? 'study_material';
 
   if (!file || file.type !== 'application/pdf') {
     return NextResponse.json({ error: 'A PDF file is required (field: file)' }, { status: 400 });
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
   const rows = chunks.map((chunk, index) => ({
     id:               uuidv4(),
     exam_name:        examName,
+    doc_type:         docType,
     source_file:      gcsUri,
     chunk_index:      index,
     content:          chunk,
@@ -120,7 +122,7 @@ export async function POST(req: NextRequest) {
     const valuePlaceholders = batch
       .map(
         (_, idx) =>
-          `(@id_${idx}, @exam_name_${idx}, @source_${idx}, @chunk_idx_${idx}, @content_${idx}, ` +
+          `(@id_${idx}, @exam_name_${idx}, @doc_type_${idx}, @source_${idx}, @chunk_idx_${idx}, @content_${idx}, ` +
           `(SELECT ml_generate_embedding_result FROM ML.GENERATE_EMBEDDING(MODEL \`${embedModel}\`, ` +
           `(SELECT @content_${idx} AS content)) LIMIT 1), ` +
           `@method_${idx}, CURRENT_TIMESTAMP())`
@@ -132,6 +134,7 @@ export async function POST(req: NextRequest) {
     batch.forEach((row, idx) => {
       params[`id_${idx}`]        = row.id;
       params[`exam_name_${idx}`] = row.exam_name;
+      params[`doc_type_${idx}`]  = row.doc_type;
       params[`source_${idx}`]    = row.source_file;
       params[`chunk_idx_${idx}`] = row.chunk_index;
       params[`content_${idx}`]   = row.content;
@@ -140,7 +143,7 @@ export async function POST(req: NextRequest) {
 
     const insertQuery = `
       INSERT INTO \`${project}.${dataset}.${table}\`
-        (id, exam_name, source_file, chunk_index, content, content_embedding, extraction_method, created_at)
+        (id, exam_name, doc_type, source_file, chunk_index, content, content_embedding, extraction_method, created_at)
       VALUES
         ${valuePlaceholders}
     `;
@@ -172,6 +175,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     success: true,
     exam_name:         examName,
+    doc_type:          docType,
     gcs_uri:           gcsUri,
     extraction_method: extractionResult.method,
     total_chunks:      chunks.length,

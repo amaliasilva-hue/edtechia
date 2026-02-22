@@ -16,9 +16,11 @@ export const metadata: Metadata = {
   description: 'AI-powered scenario-based exam questions for GCP and Google Workspace certifications. Train smarter, certify faster.',
   manifest: '/manifest.json',
   appleWebApp: {
-    capable: true,
     statusBarStyle: 'black-translucent',
     title: 'CloudDojo',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
   icons: {
     apple: '/icons/icon-192.png',

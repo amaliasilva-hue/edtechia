@@ -8,6 +8,7 @@ type UploadState = 'idle' | 'uploading' | 'success' | 'error';
 
 type UploadResult = {
   exam_name:         string;
+  doc_type:          string;
   gcs_uri:           string;
   extraction_method: string;
   total_chunks:      number;
@@ -18,6 +19,7 @@ export default function AdminUploadPage() {
   const inputRef  = useRef<HTMLInputElement>(null);
 
   const [examName,     setExamName]     = useState('');
+  const [docType,      setDocType]      = useState('exam_guide');
   const [file,         setFile]         = useState<File | null>(null);
   const [dragActive,   setDragActive]   = useState(false);
   const [uploadState,  setUploadState]  = useState<UploadState>('idle');
@@ -56,6 +58,7 @@ export default function AdminUploadPage() {
     const form = new FormData();
     form.append('file',      file);
     form.append('exam_name', examName);
+    form.append('doc_type',  docType);
 
     try {
       setProgress('Extracting text (MuPDF / Vision OCR)...');
@@ -130,6 +133,35 @@ export default function AdminUploadPage() {
           </select>
         </div>
 
+        {/* Doc Type */}
+        <div>
+          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Document Type
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { value: 'exam_guide',          label: 'Exam Guide',           desc: 'Official certification guide / syllabus' },
+              { value: 'failure_analysis',     label: 'Failure Analysis',     desc: 'Post-exam analysis of weak areas' },
+              { value: 'study_material',       label: 'Study Material',       desc: 'Whitepapers, docs, books' },
+              { value: 'practice_questions',   label: 'Practice Questions',   desc: 'Question banks, dumps' },
+            ] as const).map(({ value, label, desc }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setDocType(value)}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  docType === value
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border bg-secondary/30 hover:border-primary/40'
+                }`}
+              >
+                <div className={`text-xs font-semibold ${ docType === value ? 'text-primary' : 'text-foreground' }`}>{label}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Drop Zone */}
         <div
           onDrop={handleDrop}
@@ -194,7 +226,7 @@ export default function AdminUploadPage() {
               <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               Processing...
             </span>
-          ) : '⬆ Ingest PDF'}
+          ) : 'Ingest PDF'}
         </button>
 
         {/* Progress */}
@@ -219,6 +251,10 @@ export default function AdminUploadPage() {
               <div className="bg-background/50 rounded-lg p-3 space-y-0.5">
                 <p className="text-muted-foreground">Exam</p>
                 <p className="font-medium text-foreground font-mono">{result.exam_name}</p>
+              </div>
+              <div className="bg-background/50 rounded-lg p-3 space-y-0.5">
+                <p className="text-muted-foreground">Doc Type</p>
+                <p className="font-medium text-foreground font-mono">{result.doc_type}</p>
               </div>
               <div className="bg-background/50 rounded-lg p-3 space-y-0.5">
                 <p className="text-muted-foreground">Extraction Method</p>
