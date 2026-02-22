@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "br-ventasbrasil-cld-01"
+  },
+  "targets": {
+    "br-ventasbrasil-cld-01": {
+      "hosting": {
+        "edtechia-br": [
+          "edtechia-br"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
