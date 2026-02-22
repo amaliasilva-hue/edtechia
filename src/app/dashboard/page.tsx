@@ -288,17 +288,31 @@ export default function DashboardPage() {
                 <div className="h-6 w-px bg-border hidden sm:block" />
                 <div className="flex-1 min-w-[160px]">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-muted-foreground">Meta diária</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">Meta diária</span>
+                      {editingGoal ? (
+                        <div className="flex items-center gap-1 ml-1">
+                          <input type="number" value={goalInput} onChange={e => setGoalInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && saveGoal()}
+                            className="w-12 bg-secondary border border-border rounded px-1.5 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                          <button onClick={saveGoal} className="text-xs text-primary hover:underline">OK</button>
+                          <button onClick={() => setEditingGoal(false)} className="text-xs text-muted-foreground hover:underline">×</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setEditingGoal(true)}
+                          className="text-xs text-muted-foreground hover:text-primary ml-1 transition-colors" title="Editar meta">✎</button>
+                      )}
+                    </div>
                     <span className="text-xs font-semibold text-foreground tabular-nums">
-                      {Math.min(insights.today_count, DAILY_GOAL)}/{DAILY_GOAL} questões
+                      {Math.min(insights.today_count, dailyGoal)}/{dailyGoal} questões
                     </span>
                   </div>
                   <div className="h-2 bg-secondary rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-700 ${
-                        insights.today_count >= DAILY_GOAL ? 'bg-green-500' : 'bg-primary'
+                        insights.today_count >= dailyGoal ? 'bg-green-500' : 'bg-primary'
                       }`}
-                      style={{ width: `${Math.min(100, (insights.today_count / DAILY_GOAL) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (insights.today_count / dailyGoal) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -343,7 +357,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ── Spaced Repetition Alert ── */}}
+            {/* ── Spaced Repetition Alert ── */}
             {insights.spaced_repetition.length > 0 && (
               <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-2">
                 <div className="flex items-center gap-2">
@@ -524,7 +538,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ── Recent Activity (detailed) ── */}}
+            {/* ── Recent Activity (detailed) ── */}
             {insights.recent_activity.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-3">
