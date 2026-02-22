@@ -6,14 +6,17 @@ export type TimerState = 'idle' | 'running' | 'expired';
 
 export type UseExamTimerReturn = {
   secondsLeft:    number;
-  elapsed:        number;       // seconds since timer started
+  elapsed:        number;
   state:          TimerState;
-  progressPct:    number;       // 0–100, decreasing
-  colorClass:     string;       // tailwind text color
-  barColorClass:  string;       // tailwind bg color for progress bar
-  formattedTime:  string;       // "4:32"
+  paused:         boolean;
+  progressPct:    number;
+  colorClass:     string;
+  barColorClass:  string;
+  formattedTime:  string;
   start:          () => void;
   reset:          () => void;
+  pause:          () => void;
+  resume:         () => void;
 };
 
 const TOTAL = 300; // 5 minutes
@@ -21,8 +24,10 @@ const TOTAL = 300; // 5 minutes
 export function useExamTimer(onExpire?: () => void): UseExamTimerReturn {
   const [secondsLeft, setSecondsLeft] = useState(TOTAL);
   const [state, setState]             = useState<TimerState>('idle');
+  const [paused, setPaused]           = useState(false);
   const intervalRef                   = useRef<ReturnType<typeof setInterval> | null>(null);
   const onExpireRef                   = useRef(onExpire);
+  const secondsRef                    = useRef(TOTAL); // track without closure issues
 
   // Keep callback ref fresh without re-starting the interval
   useEffect(() => { onExpireRef.current = onExpire; }, [onExpire]);
@@ -35,24 +40,51 @@ export function useExamTimer(onExpire?: () => void): UseExamTimerReturn {
   const start = useCallback(() => {
     clear();
     setSecondsLeft(TOTAL);
+    secondsRef.current = TOTAL;
     setState('running');
+    setPaused(false);
     intervalRef.current = setInterval(() => {
-      setSecondsLeft(prev => {
-        if (prev <= 1) {
-          clear();
-          setState('expired');
-          onExpireRef.current?.();
-          return 0;
-        }
-        return prev - 1;
-      });
+      secondsRef.current -= 1;
+      if (secondsRef.current <= 0) {
+        clear();
+        setState('expired');
+        setSecondsLeft(0);
+        onExpireRef.current?.();
+      } else {
+        setSecondsLeft(secondsRef.current);
+      }
     }, 1000);
   }, []);
 
   const reset = useCallback(() => {
     clear();
     setSecondsLeft(TOTAL);
+    secondsRef.current = TOTAL;
     setState('idle');
+    setPaused(false);
+  }, []);
+
+  const pause = useCallback(() => {
+    if (intervalRef.current) {
+      clear();
+      setPaused(true);
+    }
+  }, []);
+
+  const resume = useCallback(() => {
+    if (secondsRef.current <= 0) return;
+    setPaused(false);
+    intervalRef.current = setInterval(() => {
+      secondsRef.current -= 1;
+      if (secondsRef.current <= 0) {
+        clear();
+        setState('expired');
+        setSecondsLeft(0);
+        onExpireRef.current?.();
+      } else {
+        setSecondsLeft(secondsRef.current);
+      }
+    }, 1000);
   }, []);
 
   // Cleanup on unmount
@@ -82,11 +114,14 @@ export function useExamTimer(onExpire?: () => void): UseExamTimerReturn {
     secondsLeft,
     elapsed,
     state,
+    paused,
     progressPct,
     colorClass,
     barColorClass,
     formattedTime,
     start,
     reset,
+    pause,
+    resume,
   };
 }

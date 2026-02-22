@@ -46,7 +46,7 @@ function getOptionStyle(
   correctLetter: string,
   reveal: boolean,
 ): string {
-  const base = 'w-full text-left px-4 py-3 rounded-xl border text-sm transition-all duration-150 ';
+  const base = 'w-full text-left px-4 py-4 sm:py-3 rounded-xl border text-sm transition-all duration-150 flex items-start min-h-[52px] ';
   if (!selected || !reveal) {
     if (selected === letter) return base + 'border-primary bg-primary/10 text-primary';
     return base + 'border-border bg-secondary/30 hover:border-primary/50 hover:bg-primary/5 active:scale-[0.99]';
@@ -599,12 +599,12 @@ export default function SimuladoPage() {
         {/* Options */}
         <div className="space-y-2">
           {OPTION_KEYS.map(letter => (
-            <button key={letter}
+              <button key={letter}
               onClick={() => handleSelect(letter)}
               disabled={selected !== null && !revealMode}
               className={getOptionStyle(letter, selected, currentQ.question.correct_letter, revealed)}>
-              <span className="font-semibold mr-3 font-mono">{letter}.</span>
-              {currentQ.question.options_en[letter]}
+              <span className="font-semibold mr-3 font-mono shrink-0">{letter}.</span>
+              <span className="text-left">{currentQ.question.options_en[letter]}</span>
             </button>
           ))}
         </div>

@@ -124,20 +124,21 @@ const OPTION_KEYS = ['A', 'B', 'C', 'D'] as const;
 
 function getOptionStyle(
   letter: string,
+  pending: string | null,
   selected: string | null,
   correctLetter: string
 ): string {
-  const base = 'w-full text-left px-4 py-3 rounded-xl border text-sm transition-all duration-150 ';
-  if (!selected) {
-    return base + 'border-border bg-secondary/30 hover:border-primary/50 hover:bg-primary/5 active:scale-[0.99]';
+  const base = 'w-full text-left px-4 py-4 sm:py-3 rounded-xl border text-sm transition-all duration-150 min-h-[52px] ';
+  // Already confirmed (selected != null)
+  if (selected !== null) {
+    if (letter === correctLetter)  return base + 'border-green-500 bg-green-500/10 text-green-300';
+    if (letter === selected)       return base + 'border-red-500   bg-red-500/10   text-red-300';
+    return base + 'border-border bg-secondary/20 text-muted-foreground opacity-50';
   }
-  if (letter === correctLetter) {
-    return base + 'border-green-500 bg-green-500/10 text-green-300';
-  }
-  if (letter === selected) {
-    return base + 'border-red-500 bg-red-500/10 text-red-300';
-  }
-  return base + 'border-border bg-secondary/20 text-muted-foreground opacity-50';
+  // Pending (highlighted, not yet confirmed)
+  if (pending === letter) return base + 'border-primary bg-primary/15 text-primary ring-2 ring-primary/40';
+  // Default
+  return base + 'border-border bg-secondary/30 hover:border-primary/50 hover:bg-primary/5 active:scale-[0.99]';
 }
 
 // ─── Props ──────────────────────────────────────────────────────────────────
@@ -164,6 +165,9 @@ export type QuestionCardProps = {
   timerColorClass:  string;
   timerBarClass:    string;
   timerState:       'idle' | 'running' | 'expired';
+  timerPaused?:     boolean;
+  onPause?:         () => void;
+  onResume?:        () => void;
   // Gamification
   streak:     number;
   studyMode:  boolean;
@@ -193,6 +197,9 @@ export function QuestionCard({
   timerColorClass,
   timerBarClass,
   timerState,
+  timerPaused,
+  onPause,
+  onResume,
   streak,
   studyMode,
   rating,
@@ -204,6 +211,28 @@ export function QuestionCard({
   onReportSubmit,
   onNext,
 }: QuestionCardProps) {
+  const [pendingAnswer, setPendingAnswer] = useState<string | null>(null);
+
+  // Reset pending when question changes (selected goes null = new question)
+  useEffect(() => {
+    if (selected === null) setPendingAnswer(null);
+  }, [selected, question]);
+
+  const handleOptionClick = (letter: string) => {
+    if (selected !== null) return; // already confirmed
+    if (pendingAnswer === letter) {
+      // Second tap on same option = confirm
+      onAnswer(letter);
+    } else {
+      setPendingAnswer(letter);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (pendingAnswer === null || selected !== null) return;
+    onAnswer(pendingAnswer);
+  };
+
   const answerState = selected
     ? selected === question.correct_letter ? 'correct' : 'incorrect'
     : 'idle';
@@ -213,15 +242,25 @@ export function QuestionCard({
       {/* Timer bar — hidden in study mode */}
       {!studyMode && timerState !== 'idle' && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center justify-between px-4 py-2 gap-2">
             <span className="text-xs text-muted-foreground">Tempo restante</span>
-            <span className={`text-sm font-mono font-semibold tabular-nums ${timerColorClass}`}>
-              {timerState === 'expired' ? '0:00' : timerFormatted}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-mono font-semibold tabular-nums ${timerColorClass}`}>
+                {timerState === 'expired' ? '0:00' : timerPaused ? `${timerFormatted} ⏸` : timerFormatted}
+              </span>
+              {onPause && onResume && timerState === 'running' && (
+                <button
+                  onClick={timerPaused ? onResume : onPause}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors min-w-[52px]"
+                >
+                  {timerPaused ? 'Retomar' : 'Pausar'}
+                </button>
+              )}
+            </div>
           </div>
           <div className="h-1.5 bg-secondary w-full">
             <div
-              className={`h-full transition-all duration-1000 ${timerBarClass}`}
+              className={`h-full transition-all duration-1000 ${timerBarClass} ${timerPaused ? 'opacity-50' : ''}`}
               style={{ width: `${timerState === 'expired' ? 0 : timerProgressPct}%` }}
             />
           </div>
@@ -272,15 +311,25 @@ export function QuestionCard({
         {OPTION_KEYS.map((letter) => (
           <button
             key={letter}
-            onClick={() => onAnswer(letter)}
+            onClick={() => handleOptionClick(letter)}
             disabled={!!selected}
-            className={getOptionStyle(letter, selected, question.correct_letter)}
+            className={getOptionStyle(letter, pendingAnswer, selected, question.correct_letter)}
           >
-            <span className="font-semibold mr-3 font-mono">{letter}.</span>
-            {question.options_en[letter]}
+            <span className="font-semibold mr-3 font-mono shrink-0">{letter}.</span>
+            <span className="text-left">{question.options_en[letter]}</span>
           </button>
         ))}
       </div>
+
+      {/* Confirm button — shown only when answer is pending and not yet confirmed */}
+      {pendingAnswer !== null && selected === null && (
+        <button
+          onClick={handleConfirm}
+          className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.99] transition-all"
+        >
+          Confirmar resposta {pendingAnswer}
+        </button>
+      )}
 
       {/* Result banner */}
       {answerState !== 'idle' && (

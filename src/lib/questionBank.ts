@@ -133,3 +133,36 @@ export function getBankStats(): Record<string, number> {
   });
   return stats;
 }
+
+/**
+ * Proactively warm the bank for every (topicId × difficulty) combination of
+ * a given exam. Call this from a non-blocking context (admin ping, dashboard
+ * load, etc.) when you want the bank pre-filled before users start answering.
+ *
+ * @param examId   - exam identifier (e.g. "clf")
+ * @param topics   - array of topic ids for this exam
+ * @param difficulties - array of difficulty levels (e.g. ['easy','medium','hard'])
+ * @param buildPrompts - factory that returns systemPrompt+userPrompt for a
+ *                       given (topicId, difficulty) pair
+ */
+export function warmBankForExam(
+  examId: string,
+  topics: string[],
+  difficulties: string[],
+  buildPrompts: (topicId: string, difficulty: string) => { systemPrompt: string; userPrompt: string },
+): void {
+  for (const topicId of topics) {
+    for (const difficulty of difficulties) {
+      triggerRefillIfNeeded(
+        examId,
+        topicId,
+        difficulty,
+        () => buildPrompts(topicId, difficulty),
+      );
+    }
+  }
+  console.log(
+    `[questionBank] warmBankForExam triggered for examId=${examId}, ` +
+    `${topics.length} topics × ${difficulties.length} difficulties`
+  );
+}

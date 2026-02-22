@@ -321,6 +321,9 @@ export default function ExamArenaPage() {
             timerColorClass={timer.colorClass}
             timerBarClass={timer.barColorClass}
             timerState={timer.state}
+            timerPaused={timer.paused}
+            onPause={() => timer.pause()}
+            onResume={() => timer.resume()}
             streak={streak}
             studyMode={studyMode}
             rating={rating}
