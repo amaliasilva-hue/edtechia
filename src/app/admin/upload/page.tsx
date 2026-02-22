@@ -96,14 +96,12 @@ export default function AdminUploadPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm transition-colors">
-              ← Dashboard
-            </Link>
-            <span className="text-border">|</span>
-            <span className="text-sm font-medium text-foreground">Admin — Upload Document</span>
-          </div>
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
+          <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm transition-colors shrink-0">
+            ← Dashboard
+          </Link>
+          <span className="text-border hidden sm:block">|</span>
+          <span className="text-sm font-medium text-foreground hidden sm:block">Admin — Upload</span>
         </div>
       </header>
 

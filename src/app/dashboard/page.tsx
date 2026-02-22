@@ -97,11 +97,12 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <CloudDojoLogo size="sm" />
           </div>
-          <div className="flex items-center gap-4">
+          {/* Nav links — hidden on mobile */}
+          <div className="hidden sm:flex items-center gap-4">
             <Link href="/simulado"
               className="text-xs font-medium text-primary hover:underline transition-colors">
               Simulado
@@ -114,14 +115,22 @@ export default function DashboardPage() {
               className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               Admin
             </Link>
+          </div>
+          {/* Right: always visible actions */}
+          <div className="flex items-center gap-2">
+            {/* Mobile nav shortcuts */}
+            <div className="flex sm:hidden items-center gap-1">
+              <Link href="/simulado" className="text-xs px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary font-medium">Simulado</Link>
+              <Link href="/review" className="text-xs px-2.5 py-1.5 rounded-lg bg-secondary text-muted-foreground">Erros</Link>
+            </div>
             <ThemeToggle />
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{session?.user?.email}</span>
+              <span className="hidden sm:block text-sm text-muted-foreground truncate max-w-[160px]">{session?.user?.email}</span>
               <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
-                className="text-xs bg-secondary px-3 py-1.5 rounded-lg hover:bg-secondary/80 transition-colors"
+                className="text-xs bg-secondary px-3 py-1.5 rounded-lg hover:bg-secondary/80 transition-colors whitespace-nowrap"
               >
-                Sign out
+                Sair
               </button>
             </div>
           </div>

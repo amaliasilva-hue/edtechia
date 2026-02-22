@@ -199,7 +199,7 @@ export default function ExamArenaPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm transition-colors shrink-0">
               ← Dashboard
             </Link>
@@ -207,13 +207,13 @@ export default function ExamArenaPage() {
             <span className="text-sm font-medium text-foreground truncate hidden sm:block">{exam.title}</span>
           </div>
           {sessionCount > 0 && (
-            <div className="flex items-center gap-2 text-xs shrink-0">
-              <span className="px-2.5 py-1 rounded-full bg-secondary text-muted-foreground font-mono">
+            <div className="flex items-center gap-1.5 text-xs shrink-0">
+              <span className="px-2 py-1 rounded-full bg-secondary text-muted-foreground font-mono">
                 {sessionCorrect}/{sessionCount}
               </span>
               {streak >= 2 && (
-                <span className="px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400 font-semibold tabular-nums">
-                  {streak} seguidos
+                <span className="px-2 py-1 rounded-full bg-orange-500/15 text-orange-400 font-semibold tabular-nums">
+                  {streak} seg.
                 </span>
               )}
             </div>

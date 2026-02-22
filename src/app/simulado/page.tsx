@@ -273,10 +273,10 @@ export default function SimuladoPage() {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-            <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm transition-colors">← Dashboard</Link>
-            <span className="text-border">|</span>
-            <span className="text-sm font-semibold text-foreground">Simulado</span>
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
+            <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm transition-colors shrink-0">← Dashboard</Link>
+            <span className="text-border hidden sm:block">|</span>
+            <span className="text-sm font-semibold text-foreground hidden sm:block">Simulado</span>
           </div>
         </header>
         <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -424,10 +424,10 @@ export default function SimuladoPage() {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card/50 sticky top-0 z-10">
-          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-            <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm">← Dashboard</Link>
-            <span className="text-border">|</span>
-            <span className="text-sm font-semibold">Resultado do Simulado</span>
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-2">
+            <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm shrink-0">← Dashboard</Link>
+            <span className="text-border hidden sm:block">|</span>
+            <span className="text-sm font-semibold hidden sm:block">Resultado do Simulado</span>
           </div>
         </header>
         <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
