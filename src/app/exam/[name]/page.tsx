@@ -49,6 +49,9 @@ export default function ExamArenaPage() {
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [showRecap,      setShowRecap]      = useState(false);
 
+  // ── Topic-level difficulty tracking (for auto-suggest) ──────────
+  const [topicDiffStats, setTopicDiffStats] = useState<Record<string, { correct: number; total: number }>>({});
+
   // ── Dedup ──────────────────────────────────────────────────────
   const seenQuestionsRef = useRef<string[]>([]);
 
@@ -131,6 +134,13 @@ export default function ExamArenaPage() {
     if (isCorrect) setSessionCorrect(c => c + 1);
     if (newCount >= RECAP_AT) setShowRecap(true);
 
+    // Track per-topic accuracy for difficulty auto-suggest
+    const statKey = `${current.topic_id}:${current.difficulty}`;
+    setTopicDiffStats(prev => {
+      const s = prev[statKey] ?? { correct: 0, total: 0 };
+      return { ...prev, [statKey]: { correct: s.correct + (isCorrect ? 1 : 0), total: s.total + 1 } };
+    });
+
     try {
       const res = await fetch('/api/save-result', {
         method: 'POST',
@@ -202,8 +212,8 @@ export default function ExamArenaPage() {
                 {sessionCorrect}/{sessionCount}
               </span>
               {streak >= 2 && (
-                <span className="px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400 font-semibold">
-                  🔥 {streak}
+                <span className="px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400 font-semibold tabular-nums">
+                  {streak} seguidos
                 </span>
               )}
             </div>
@@ -224,7 +234,7 @@ export default function ExamArenaPage() {
                   : 'bg-secondary text-muted-foreground hover:text-foreground'
               }`}
             >
-              {studyMode ? '📚 Modo Estudo (sem timer)' : '⏱ Modo Exame (com timer)'}
+              {studyMode ? 'Modo Estudo — sem timer' : 'Modo Exame — com timer'}
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -233,7 +243,7 @@ export default function ExamArenaPage() {
               <select value={topicId} onChange={(e) => setTopicId(e.target.value)}
                 className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="">Selecione um tópico...</option>
-                <option value="__random__">🎲 Todos os Tópicos (Sorteio)</option>
+                <option value="__random__">Todos os Tópicos (Sorteio)</option>
                 <option disabled value="">──────────────</option>
                 {exam.topics.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
@@ -248,7 +258,7 @@ export default function ExamArenaPage() {
                     className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors min-w-[60px] ${
                       difficulty === d ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'
                     }`}>
-                    {d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : d === 'hard' ? 'Difícil' : '🎲 Sorteio'}
+                    {d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : d === 'hard' ? 'Difícil' : 'Sorteio'}
                   </button>
                 ))}
               </div>
@@ -264,11 +274,36 @@ export default function ExamArenaPage() {
                 <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                 Gerando com Gemini...
               </span>
-            ) : '⚡ Gerar Questão'}
+            ) : 'Gerar Questão'}
           </button>
           {genError && (
             <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{genError}</p>
           )}
+
+          {/* Difficulty auto-suggest */}
+          {topicId && topicId !== '__random__' && (difficulty === 'easy' || difficulty === 'medium') && (() => {
+            const statKey = `${topicId}:${difficulty}`;
+            const s = topicDiffStats[statKey];
+            if (!s || s.total < 5) return null;
+            const pct = Math.round(s.correct / s.total * 100);
+            if (pct < 80) return null;
+            const nextLevel = difficulty === 'easy' ? 'medium' as const : 'hard' as const;
+            const nextLabel = nextLevel === 'medium' ? 'Médio' : 'Difícil';
+            return (
+              <div className="p-3 rounded-xl border border-green-500/30 bg-green-500/5 flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-semibold text-green-400">Você domina este tópico com {pct}% de acerto</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">Avance para o nível {nextLabel} e acelere sua evolução</p>
+                </div>
+                <button
+                  onClick={() => setDifficulty(nextLevel)}
+                  className="shrink-0 px-3 py-1.5 rounded-lg bg-green-500/15 text-green-400 text-xs font-semibold hover:bg-green-500/25 transition-colors border border-green-500/30"
+                >
+                  Ir para {nextLabel}
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Question Card */}
@@ -305,8 +340,11 @@ export default function ExamArenaPage() {
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-8 max-w-sm w-full space-y-6 shadow-2xl">
             <div className="text-center">
-              <div className="text-5xl mb-3">
-                {sessionCorrect / RECAP_AT >= 0.8 ? '🏆' : sessionCorrect / RECAP_AT >= 0.6 ? '👏' : '💪'}
+              <div className={`text-4xl font-black mb-3 tabular-nums ${
+                sessionCorrect / RECAP_AT >= 0.8 ? 'text-green-400' :
+                sessionCorrect / RECAP_AT >= 0.6 ? 'text-yellow-400' : 'text-red-400'
+              }`}>
+                {Math.round(sessionCorrect / RECAP_AT * 100)}%
               </div>
               <h2 className="text-xl font-bold text-foreground">Sessão Concluída!</h2>
               <p className="text-muted-foreground text-sm mt-1">{RECAP_AT} questões respondidas</p>
@@ -325,7 +363,7 @@ export default function ExamArenaPage() {
               {maxStreak >= 2 && (
                 <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
                   <span className="text-sm text-muted-foreground">Maior sequência</span>
-                  <span className="text-lg font-bold text-orange-400">🔥 {maxStreak}</span>
+                  <span className="text-lg font-bold text-orange-400">{maxStreak} seguidos</span>
                 </div>
               )}
             </div>

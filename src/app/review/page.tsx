@@ -42,7 +42,7 @@ export default function ReviewPage() {
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm transition-colors">← Dashboard</Link>
           <span className="text-border">|</span>
-          <span className="text-sm font-semibold text-foreground">📋 Revisar Erros</span>
+          <span className="text-sm font-semibold text-foreground">Revisar Erros</span>
         </div>
       </header>
 
@@ -75,8 +75,7 @@ export default function ReviewPage() {
           <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl text-destructive text-sm">{error}</div>
         ) : data.length === 0 ? (
           <div className="p-8 rounded-xl border border-border bg-card text-center">
-            <div className="text-4xl mb-3">🎉</div>
-            <h2 className="text-lg font-semibold text-foreground">Nenhum erro encontrado!</h2>
+            <h2 className="text-lg font-semibold text-foreground">Nenhum erro encontrado</h2>
             <p className="text-muted-foreground text-sm mt-1">
               {examFilter ? 'Nenhum erro para esta prova.' : 'Você não errou nenhuma questão ainda.'}
             </p>
@@ -126,7 +125,7 @@ export default function ReviewPage() {
                   {item.explanation_pt && (
                     <details>
                       <summary className="text-xs text-primary cursor-pointer hover:underline select-none font-medium">
-                        📖 Ver explicação completa
+                        Ver explicação completa
                       </summary>
                       <div className="mt-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
                         <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">
@@ -141,7 +140,7 @@ export default function ReviewPage() {
                     href={`/exam/${item.exam_name}`}
                     className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
                   >
-                    ⚡ Praticar este tópico →
+                    Praticar este tópico →
                   </Link>
                 </div>
               ))}

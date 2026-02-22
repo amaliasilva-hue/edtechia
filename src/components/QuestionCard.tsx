@@ -104,7 +104,7 @@ function VisualContextBlock({ vc }: { vc: VisualContext }) {
     <div className="mt-3">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xs font-semibold uppercase tracking-wider text-amber-400">
-          {vc.type === 'mermaid' ? '🗺 Topology Diagram' : '💻 Terminal Output'}
+          {vc.type === 'mermaid' ? 'Diagrama de Topologia' : 'Saída do Terminal'}
         </span>
         <span className="text-xs text-slate-500 italic">
           (forensic evidence — does not reveal the answer)
@@ -231,18 +231,18 @@ export function QuestionCard({
       {/* Timeout banner */}
       {!studyMode && timerState === 'expired' && (
         <div className="p-4 rounded-xl border border-red-500/50 bg-red-500/10">
-          <p className="text-red-400 font-semibold text-sm">⏱ Tempo esgotado! — Resposta certa: {question.correct_letter}</p>
+          <p className="text-red-400 font-semibold text-sm">Tempo esgotado — Resposta certa: {question.correct_letter}</p>
         </div>
       )}
 
       {/* Metadata badges + streak */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
         {studyMode && (
-          <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">📚 Modo Estudo</span>
+          <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">Modo Estudo</span>
         )}
         {streak >= 2 && (
-          <span className="px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 font-semibold animate-pulse">
-            🔥 {streak} seguidas!
+          <span className="px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 font-semibold tabular-nums">
+            {streak} seguidas
           </span>
         )}
         <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono">
@@ -252,7 +252,7 @@ export function QuestionCard({
         <span className="px-2 py-0.5 rounded-full bg-secondary capitalize">{difficulty}</span>
         {ragChunks > 0 && (
           <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">
-            📚 {ragChunks} RAG
+            {ragChunks} RAG
           </span>
         )}
       </div>
@@ -293,8 +293,8 @@ export function QuestionCard({
             answerState === 'correct' ? 'text-green-400' : 'text-red-400'
           }`}>
             {answerState === 'correct'
-              ? '✅ Correct!'
-              : `❌ Incorrect — Correct answer: ${question.correct_letter}`}
+              ? 'Correto!'
+              : `Incorreto — Resposta certa: ${question.correct_letter}`}
           </p>
         </div>
       )}
@@ -322,7 +322,7 @@ export function QuestionCard({
                   ? 'bg-green-500/20 text-green-400 border border-green-500/50'
                   : 'bg-secondary text-muted-foreground hover:text-foreground'
               }`}>
-              👍 Good
+              Positivo
             </button>
             <button onClick={() => onRate(-1)}
               className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
@@ -330,11 +330,11 @@ export function QuestionCard({
                   ? 'bg-red-500/20 text-red-400 border border-red-500/50'
                   : 'bg-secondary text-muted-foreground hover:text-foreground'
               }`}>
-              👎 Bad
+              Negativo
             </button>
             <button onClick={onReport}
               className="px-3 py-1.5 rounded-lg text-sm bg-secondary text-muted-foreground hover:text-foreground transition-colors">
-              🚨 Report
+              Reportar
             </button>
           </div>
         </div>
@@ -364,7 +364,7 @@ export function QuestionCard({
       {selected && (
         <button onClick={onNext}
           className="w-full py-3 rounded-xl border border-dashed border-border text-muted-foreground text-sm hover:border-primary/50 hover:text-foreground transition-all">
-          ⚡ Generate Next Question
+          Próxima Questão →
         </button>
       )}
     </div>

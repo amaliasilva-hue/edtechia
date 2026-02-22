@@ -154,7 +154,9 @@ export default function AdminUploadPage() {
 
           {file ? (
             <div className="space-y-1">
-              <p className="text-3xl">📄</p>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+                <span className="text-xs font-bold text-primary">PDF</span>
+              </div>
               <p className="text-sm font-semibold text-foreground">{file.name}</p>
               <p className="text-xs text-muted-foreground">{humanSize(file.size)}</p>
               <button
@@ -166,7 +168,9 @@ export default function AdminUploadPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-3xl">📂</p>
+              <div className="w-10 h-10 rounded-lg bg-secondary border border-border flex items-center justify-center mx-auto">
+                <span className="text-xs text-muted-foreground font-mono">PDF</span>
+              </div>
               <p className="text-sm font-semibold text-foreground">Drop PDF here or click to choose</p>
               <p className="text-xs text-muted-foreground">Only PDF files are supported</p>
             </div>
@@ -205,7 +209,7 @@ export default function AdminUploadPage() {
         {result && uploadState === 'success' && (
           <div className="p-5 rounded-xl border border-green-500/30 bg-green-500/10 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-green-400 text-sm">✅ Ingestion Complete</h3>
+              <h3 className="font-semibold text-green-400 text-sm">Ingestion Complete</h3>
               <button onClick={reset} className="text-xs text-muted-foreground hover:text-foreground">
                 Upload another
               </button>

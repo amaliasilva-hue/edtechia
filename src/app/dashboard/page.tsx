@@ -104,11 +104,11 @@ export default function DashboardPage() {
           <div className="flex items-center gap-4">
             <Link href="/simulado"
               className="text-xs font-medium text-primary hover:underline transition-colors">
-              🚀 Simulado
+              Simulado
             </Link>
             <Link href="/review"
               className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              📋 Revisar Erros
+              Revisar Erros
             </Link>
             <Link href="/admin/upload"
               className="text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -151,7 +151,7 @@ export default function DashboardPage() {
             {insights.spaced_repetition.length > 0 && (
               <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-blue-400 text-base">🔁</span>
+                  <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
                   <span className="text-sm font-semibold text-blue-400">Tópicos para revisar — não praticados há 3+ dias</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -174,7 +174,7 @@ export default function DashboardPage() {
               return (
                 <div className="p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/5 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-yellow-400 text-base">⚠️</span>
+                    <span className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />
                     <span className="text-sm font-semibold text-yellow-400">Tópicos que precisam de reforço</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -213,8 +213,8 @@ export default function DashboardPage() {
               <StatCard
                 label="AI Quality (RLHF)"
                 value={insights.ai_quality.reduce((a, b) => a + b.thumbs_up, 0) +
-                       ' 👍 / ' +
-                       insights.ai_quality.reduce((a, b) => a + b.thumbs_down, 0) + ' 👎'}
+                       ' / ' +
+                       insights.ai_quality.reduce((a, b) => a + b.thumbs_down, 0)}
                 sub={`${insights.ai_quality.reduce((a, b) => a + b.total_rated, 0)} questões avaliadas`}
                 color="purple"
               />
@@ -227,13 +227,16 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {(['easy', 'medium', 'hard'] as const).map((d) => {
                     const row = insights.accuracy_by_difficulty.find(r => r.difficulty === d);
-                    const label = d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : 'Difícil';
-                    const icon  = d === 'easy' ? '🟢' : d === 'medium' ? '🟡' : '🔴';
+                    const label  = d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : 'Difícil';
+                    const dotCls = d === 'easy' ? 'bg-green-500' : d === 'medium' ? 'bg-yellow-500' : 'bg-red-500';
                     const colorBar = d === 'easy' ? 'bg-green-500' : d === 'medium' ? 'bg-yellow-500' : 'bg-red-500';
                     return (
                       <div key={d} className="p-5 rounded-xl border border-border bg-card space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-foreground">{icon} {label}</span>
+                        <div className="flex items-center gap-2 justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
+                            <span className="text-sm font-semibold text-foreground">{label}</span>
+                          </div>
                           {row ? <AccuracyBadge value={row.accuracy_pct} /> : <span className="text-xs text-muted-foreground">—</span>}
                         </div>
                         {row ? (
@@ -300,7 +303,7 @@ export default function DashboardPage() {
                                     {t.correct}/{t.total}
                                   </span>
                                   {t.timeouts > 0 && (
-                                    <span className="text-xs text-red-400">{t.timeouts}⏱</span>
+                                    <span className="text-xs text-red-400">{t.timeouts} timeout</span>
                                   )}
                                 </div>
                               ))}
@@ -316,11 +319,11 @@ export default function DashboardPage() {
             {/* ── Evolution Chart + Radar ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="p-5 rounded-xl border border-border bg-card">
-                <h2 className="text-sm font-semibold text-foreground mb-4">📈 Evolução de Acurácia (por semana)</h2>
+                <h2 className="text-sm font-semibold text-foreground mb-4">Evolução de Acurácia (por semana)</h2>
                 <EvolutionChart data={insights.accuracy_evolution} />
               </div>
               <div className="p-5 rounded-xl border border-border bg-card">
-                <h2 className="text-sm font-semibold text-foreground mb-4">🕸 Comparação entre Provas</h2>
+                <h2 className="text-sm font-semibold text-foreground mb-4">Comparação entre Provas</h2>
                 <ExamRadarChart data={insights.accuracy_by_exam} />
               </div>
             </div>
@@ -401,13 +404,15 @@ export default function DashboardPage() {
                             <td className="px-4 py-3 text-center">
                               <AnswerBadge letter={row.correct_letter} isCorrect={true} alwaysGreen />
                             </td>
-                            <td className="px-4 py-3 text-center text-lg">
-                              {row.is_correct ? '✅' : '❌'}
+                            <td className="px-4 py-3 text-center">
+                              {row.is_correct
+                                ? <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" />
+                                : <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500" />}
                             </td>
                             <td className="px-4 py-3 text-center text-xs font-mono text-muted-foreground">
                               {row.time_taken_seconds != null
                                 ? row.time_taken_seconds >= 300
-                                  ? <span className="text-red-400">⏱ Timeout</span>
+                                  ? <span className="text-red-400 text-xs">Timeout</span>
                                   : formatSeconds(row.time_taken_seconds)
                                 : '—'}
                             </td>
@@ -430,8 +435,8 @@ export default function DashboardPage() {
                     <thead className="bg-secondary/50">
                       <tr>
                         <th className="px-4 py-3 text-left text-muted-foreground font-medium">Modelo</th>
-                        <th className="px-4 py-3 text-center text-muted-foreground font-medium">👍</th>
-                        <th className="px-4 py-3 text-center text-muted-foreground font-medium">👎</th>
+                        <th className="px-4 py-3 text-center text-muted-foreground font-medium">Positivo</th>
+                        <th className="px-4 py-3 text-center text-muted-foreground font-medium">Negativo</th>
                         <th className="px-4 py-3 text-center text-muted-foreground font-medium">Total Avaliado</th>
                       </tr>
                     </thead>

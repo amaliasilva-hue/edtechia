@@ -341,7 +341,7 @@ export default function SimuladoPage() {
                   className={`py-2.5 rounded-xl text-xs font-medium transition-colors ${
                     simDiff === d ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'
                   }`}>
-                  {d === 'easy' ? '🟢 Fácil' : d === 'medium' ? '🟡 Médio' : d === 'hard' ? '🔴 Difícil' : '🎲 Misto'}
+                  {d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : d === 'hard' ? 'Difícil' : 'Misto'}
                 </button>
               ))}
             </div>
@@ -371,7 +371,7 @@ export default function SimuladoPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              ⏱ Tempo estimado: {formatTime((customQ ? parseInt(customQ) || totalQ : totalQ) * SECONDS_PER_QUESTION)}
+              Tempo estimado: {formatTime((customQ ? parseInt(customQ) || totalQ : totalQ) * SECONDS_PER_QUESTION)}
             </p>
           </div>
 
@@ -400,7 +400,7 @@ export default function SimuladoPage() {
                 <span className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                 Carregando primeira questão…
               </span>
-            ) : `🚀 Iniciar Simulado (${customQ || totalQ} questões)`}
+            ) : `Iniciar Simulado (${customQ || totalQ} questões)`}
           </button>
         </main>
       </div>
@@ -419,7 +419,7 @@ export default function SimuladoPage() {
       if (a.is_correct) acc[k].correct++;
       return acc;
     }, {});
-    const emoji = pct >= 80 ? '🏆' : pct >= 70 ? '👏' : pct >= 60 ? '💪' : '📚';
+
 
     return (
       <div className="min-h-screen bg-background">
@@ -433,8 +433,9 @@ export default function SimuladoPage() {
         <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
           {/* Score */}
           <div className="p-8 rounded-2xl border border-border bg-card text-center space-y-4">
-            <div className="text-6xl">{emoji}</div>
-            <h1 className="text-3xl font-bold text-foreground">{pct}%</h1>
+            <div className={`text-5xl font-black tabular-nums ${
+              pct >= 70 ? 'text-green-400' : pct >= 50 ? 'text-yellow-400' : 'text-red-400'
+            }`}>{pct}%</div>
             <p className="text-muted-foreground">{correct} corretas de {total} questões</p>
             <div className="h-3 bg-secondary rounded-full overflow-hidden max-w-xs mx-auto">
               <div
@@ -443,7 +444,7 @@ export default function SimuladoPage() {
               />
             </div>
             {pct >= 70
-              ? <p className="text-green-400 text-sm font-medium">Aprovado! 🎉 Acima do limiar de 70%</p>
+              ? <p className="text-green-400 text-sm font-medium">Aprovado! Acima do limiar de 70%</p>
               : <p className="text-red-400 text-sm font-medium">Abaixo de 70% — continue praticando!</p>
             }
           </div>
@@ -480,7 +481,11 @@ export default function SimuladoPage() {
               {answers.map((a, i) => (
                 <div key={i} className={`p-4 rounded-xl border ${a.is_correct ? 'border-green-500/30 bg-green-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
                   <div className="flex items-start gap-3">
-                    <span className="text-lg shrink-0">{a.is_correct ? '✅' : '❌'}</span>
+                    <span className="shrink-0">
+                      {a.is_correct
+                        ? <span className="inline-block w-3 h-3 rounded-full bg-green-500" />
+                        : <span className="inline-block w-3 h-3 rounded-full bg-red-500" />}
+                    </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="text-xs text-muted-foreground font-mono">Q{i+1}</span>
@@ -563,10 +568,10 @@ export default function SimuladoPage() {
         <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
           <span className="px-2 py-0.5 rounded-full bg-secondary">{currentQ.topic_name}</span>
           <span className="px-2 py-0.5 rounded-full bg-secondary capitalize">
-            {currentQ.difficulty === 'easy' ? '🟢 Fácil' : currentQ.difficulty === 'medium' ? '🟡 Médio' : '🔴 Difícil'}
+            {currentQ.difficulty === 'easy' ? 'Fácil' : currentQ.difficulty === 'medium' ? 'Médio' : 'Difícil'}
           </span>
           {currentQ.from_bank && (
-            <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">⚡ Banco</span>
+            <span className="px-2 py-0.5 rounded-full bg-secondary text-muted-foreground text-xs">Banco</span>
           )}
         </div>
 
@@ -608,7 +613,7 @@ export default function SimuladoPage() {
         {revealMode && revealed && (
           <div className="p-5 rounded-xl border border-border bg-secondary/30">
             <div className={`text-sm font-semibold mb-2 ${selected === currentQ.question.correct_letter ? 'text-green-400' : 'text-red-400'}`}>
-              {selected === currentQ.question.correct_letter ? '✅ Correto!' : `❌ Errado — Certa: ${currentQ.question.correct_letter}`}
+              {selected === currentQ.question.correct_letter ? 'Correto!' : `Errado — Certa: ${currentQ.question.correct_letter}`}
             </div>
             <p className="text-xs text-foreground leading-relaxed">{currentQ.question.explanation_pt}</p>
           </div>
@@ -617,7 +622,7 @@ export default function SimuladoPage() {
         {/* Confirm button */}
         <button onClick={handleConfirm} disabled={!selected}
           className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-          {currentIdx + 1 >= actualTotal ? '🏁 Finalizar Simulado' : 'Próxima →'}
+          {currentIdx + 1 >= actualTotal ? 'Finalizar Simulado' : 'Próxima →'}
         </button>
       </main>
     </div>
