@@ -75,8 +75,6 @@ type InsightsData = {
 
 // ── Exam Countdown (localStorage-based) ──────────────────────────────────────
 
-const DAILY_GOAL = 10; // questions/day target
-
 type ExamDate = { examId: string; examDate: string };
 
 function ExamCountdown() {
@@ -176,6 +174,20 @@ export default function DashboardPage() {
   const [insights, setInsights] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dailyGoal, setDailyGoal] = useState(10);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState('10');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('edtechia_daily_goal');
+    if (saved) { const n = parseInt(saved); if (n > 0) { setDailyGoal(n); setGoalInput(String(n)); } }
+  }, []);
+
+  const saveGoal = () => {
+    const n = parseInt(goalInput);
+    if (n > 0 && n <= 200) { setDailyGoal(n); localStorage.setItem('edtechia_daily_goal', String(n)); }
+    setEditingGoal(false);
+  };
 
   useEffect(() => {
     const fetchInsights = async () => {
@@ -290,49 +302,48 @@ export default function DashboardPage() {
                     />
                   </div>
                 </div>
-                {insights.today_count >= DAILY_GOAL && (
+                {insights.today_count >= dailyGoal && (
                   <span className="text-xs font-semibold text-green-400">Meta atingida!</span>
                 )}
               </div>
             )}
 
-            {/* ── Exam Countdown ── */}
-            <ExamCountdown />
-
-            {/* ── Daily streak + goal ── */}
-            {(insights.daily_streak > 0 || insights.today_count >= 0) && (
-              <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-border bg-card">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">&#128293;</span>
-                  <div>
-                    <span className="text-sm font-bold text-foreground">{insights.daily_streak} dias seguidos</span>
-                    <p className="text-xs text-muted-foreground">streak de estudo</p>
-                  </div>
-                </div>
-                <div className="h-6 w-px bg-border hidden sm:block" />
-                <div className="flex-1 min-w-[160px]">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-muted-foreground">Meta diária</span>
-                    <span className="text-xs font-semibold text-foreground tabular-nums">
-                      {Math.min(insights.today_count, DAILY_GOAL)}/{DAILY_GOAL} questões
-                    </span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        insights.today_count >= DAILY_GOAL ? 'bg-green-500' : 'bg-primary'
-                      }`}
-                      style={{ width: `${Math.min(100, (insights.today_count / DAILY_GOAL) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-                {insights.today_count >= DAILY_GOAL && (
-                  <span className="text-xs font-semibold text-green-400">Meta atingida!</span>
-                )}
+            {/* ── Escolha uma Prova (here for fast access) ── */}
+            <div>
+              <h2 className="text-lg font-semibold text-foreground mb-3">Escolha uma Prova</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {EXAM_LIST.map((exam) => {
+                  const examStats = insights.accuracy_by_exam.find(e => e.exam_name === exam.id);
+                  return (
+                    <Link key={exam.id} href={`/exam/${exam.id}`}
+                      className="group p-4 rounded-xl border border-border bg-card
+                                 hover:border-primary/50 hover:bg-primary/5 transition-all duration-150">
+                      <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
+                        {exam.title}
+                      </div>
+                      {examStats ? (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex-1 h-1 bg-secondary rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                examStats.accuracy_pct >= 70 ? 'bg-green-500' :
+                                examStats.accuracy_pct >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${examStats.accuracy_pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{examStats.accuracy_pct}%</span>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground mt-1">Ainda não iniciado →</div>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
-            )}
+            </div>
 
-            {/* ── Spaced Repetition Alert ── */}
+            {/* ── Spaced Repetition Alert ── */}}
             {insights.spaced_repetition.length > 0 && (
               <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-2">
                 <div className="flex items-center gap-2">
@@ -513,42 +524,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ── Start Exam Buttons ── */}
-            <div>
-              <h2 className="text-lg font-semibold text-foreground mb-3">Escolha uma Prova</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {EXAM_LIST.map((exam) => {
-                  const examStats = insights.accuracy_by_exam.find(e => e.exam_name === exam.id);
-                  return (
-                    <Link key={exam.id} href={`/exam/${exam.id}`}
-                      className="group p-4 rounded-xl border border-border bg-card
-                                 hover:border-primary/50 hover:bg-primary/5 transition-all duration-150">
-                      <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                        {exam.title}
-                      </div>
-                      {examStats ? (
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="flex-1 h-1 bg-secondary rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${
-                                examStats.accuracy_pct >= 70 ? 'bg-green-500' :
-                                examStats.accuracy_pct >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}
-                              style={{ width: `${examStats.accuracy_pct}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-muted-foreground">{examStats.accuracy_pct}%</span>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground mt-1">Ainda não iniciado →</div>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ── Recent Activity (detailed) ── */}
+            {/* ── Recent Activity (detailed) ── */}}
             {insights.recent_activity.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -571,7 +547,7 @@ export default function DashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {insights.recent_activity.map((row, i) => (
+                        {insights.recent_activity.slice(0, 5).map((row, i) => (
                           <tr key={i} className={`hover:bg-secondary/20 transition-colors ${
                             row.is_correct ? 'bg-green-500/3' : 'bg-red-500/3'
                           }`}>
