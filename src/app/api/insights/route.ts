@@ -41,6 +41,13 @@ type AiQualityRow = {
   total_rated:       number;
 };
 
+type DifficultyRow = {
+  difficulty:   string;
+  total:        number;
+  correct:      number;
+  accuracy_pct: number;
+};
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -102,6 +109,20 @@ export async function GET() {
       { email: userEmail }
     );
 
+    // ── Accuracy by difficulty ──────────────────────────────────────────────
+    const accuracyByDifficulty = await runQuery<DifficultyRow>(
+      `SELECT
+         difficulty,
+         COUNT(*) AS total,
+         COUNTIF(is_correct = TRUE) AS correct,
+         ROUND(COUNTIF(is_correct = TRUE) / COUNT(*) * 100, 1) AS accuracy_pct
+       FROM ${fqt}
+       WHERE user_email = @email
+       GROUP BY difficulty
+       ORDER BY CASE difficulty WHEN 'easy' THEN 1 WHEN 'medium' THEN 2 WHEN 'hard' THEN 3 ELSE 4 END`,
+      { email: userEmail }
+    );
+
     // ── AI Quality (RLHF) ───────────────────────────────────────────────────
     const aiQuality = await runQuery<AiQualityRow>(
       `SELECT
@@ -157,15 +178,16 @@ export async function GET() {
     );
 
     return NextResponse.json({
-      overall_accuracy:  overallAccuracy,
-      total_questions:   totalQuestions,
-      correct_answers:   correctAnswers,
-      avg_time_seconds:  timeRow?.avg_time_seconds ?? null,
-      total_timeouts:    Number(timeRow?.total_timeouts ?? 0),
-      accuracy_by_exam:  accuracyByExam,
-      accuracy_by_topic: accuracyByTopic,
-      ai_quality:        aiQuality,
-      recent_activity:   recentActivity,
+      overall_accuracy:      overallAccuracy,
+      total_questions:       totalQuestions,
+      correct_answers:       correctAnswers,
+      avg_time_seconds:      timeRow?.avg_time_seconds ?? null,
+      total_timeouts:        Number(timeRow?.total_timeouts ?? 0),
+      accuracy_by_exam:      accuracyByExam,
+      accuracy_by_topic:     accuracyByTopic,
+      accuracy_by_difficulty: accuracyByDifficulty,
+      ai_quality:            aiQuality,
+      recent_activity:       recentActivity,
     });
   } catch (err) {
     console.error('[insights] BigQuery query failed:', err);

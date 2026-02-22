@@ -29,7 +29,7 @@ export default function ExamArenaPage() {
 
   // ── Config ─────────────────────────────────────────────────
   const [topicId,      setTopicId]      = useState('');
-  const [difficulty,   setDifficulty]   = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [difficulty,   setDifficulty]   = useState<'easy' | 'medium' | 'hard' | '__random__'>('medium');
   const [studyMode,    setStudyMode]    = useState(false);
 
   // ── Active question ───────────────────────────────────────────
@@ -88,6 +88,10 @@ export default function ExamArenaPage() {
       ? exam.topics[Math.floor(Math.random() * exam.topics.length)].id
       : topicId;
 
+    const resolvedDifficulty = difficulty === '__random__'
+      ? (['easy', 'medium', 'hard'] as const)[Math.floor(Math.random() * 3)]
+      : difficulty;
+
     try {
       const res = await fetch('/api/generate-question', {
         method: 'POST',
@@ -95,7 +99,7 @@ export default function ExamArenaPage() {
         body: JSON.stringify({
           exam_id:        examId,
           topic_id:       resolvedTopicId,
-          difficulty,
+          difficulty:     resolvedDifficulty,
           seen_questions: seenQuestionsRef.current,
         }),
       });
@@ -237,14 +241,14 @@ export default function ExamArenaPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">Difficulty</label>
-              <div className="flex gap-2">
-                {(['easy', 'medium', 'hard'] as const).map((d) => (
+              <label className="block text-xs text-muted-foreground mb-1.5">Dificuldade</label>
+              <div className="flex gap-2 flex-wrap">
+                {(['easy', 'medium', 'hard', '__random__'] as const).map((d) => (
                   <button key={d} onClick={() => setDifficulty(d)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-medium capitalize transition-colors ${
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors min-w-[60px] ${
                       difficulty === d ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'
                     }`}>
-                    {d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : 'Difícil'}
+                    {d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : d === 'hard' ? 'Difícil' : '🎲 Sorteio'}
                   </button>
                 ))}
               </div>

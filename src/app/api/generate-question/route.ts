@@ -196,11 +196,24 @@ Rule 6 — EXPLANATION IN PORTUGUESE (explanation_pt):
          • Reference the canonical GCP documentation concept when applicable.
 
 ════════════════════════════════════════════════════════════
-§5  VISUAL CONTEXT — EVIDENCE FIRST, NEVER THE SOLUTION
+§5  VISUAL CONTEXT — DIFFICULTY-BASED EVIDENCE RULES
 ════════════════════════════════════════════════════════════
 You MUST include a visual_context object in EVERY response.
+The required type depends on the difficulty level:
 
-5a. WHEN TO USE TYPE "mermaid":
+  EASY   → ALWAYS use type "none". No diagram, no terminal output.
+            Scenario must be a clear conceptual situation or straightforward
+            config choice. content = "".
+
+  MEDIUM → 50% chance: use "mermaid" or "terminal" (your choice based on
+            scenario fit). Other 50%: use "none".
+            If this question has a strong infrastructure or CLI angle → add it.
+            If it is more of a concept/trade-off question → use "none".
+
+  HARD   → ALWAYS include visual evidence. Choose "mermaid" OR "terminal"
+            based on scenario:
+
+5a. WHEN TO USE TYPE "mermaid" (hard/medium):
     If the scenario involves: network routing, VPC peering/Service Controls,
     Kubernetes cluster topology, Load Balancer setup, multi-region architecture,
     Cloud Interconnect, or any infrastructure diagram — generate a valid
@@ -208,16 +221,14 @@ You MUST include a visual_context object in EVERY response.
     The diagram must show the problem (e.g. missing route, wrong firewall,
     unreachable subnet) WITHOUT revealing the fix. Use graph TD or sequenceDiagram.
 
-5b. WHEN TO USE TYPE "terminal":
+5b. WHEN TO USE TYPE "terminal" (hard/medium):
     If the scenario involves: a CLI command, gcloud/kubectl output, firewall
     rule listing, Cloud Logging output, or any text the user would see in a
     terminal — generate a realistic terminal output snippet (fake but plausible
     log lines, exit codes, error messages).
     Show the BROKEN state (e.g. 502 error, permission denied, timeout).
 
-5c. WHEN TO USE TYPE "none":
-    Only when the scenario is purely conceptual (IAM policy comparison, pricing
-    calculation). In this case set content to "".
+Current difficulty: ${difficulty.toUpperCase()}
 
 CRITICAL: visual_context is the FORENSIC EVIDENCE of the problem.
           It must never hint at or reveal the correct answer option.

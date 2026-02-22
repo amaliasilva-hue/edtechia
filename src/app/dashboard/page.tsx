@@ -29,6 +29,12 @@ type InsightsData = {
     avg_time_seconds: number | null;
     timeouts:         number;
   }>;
+  accuracy_by_difficulty: Array<{
+    difficulty:   string;
+    total:        number;
+    correct:      number;
+    accuracy_pct: number;
+  }>;
   ai_quality: Array<{
     gemini_model_used: string;
     thumbs_up:         number;
@@ -168,6 +174,41 @@ export default function DashboardPage() {
                 color="purple"
               />
             </div>
+
+            {/* ── Difficulty Breakdown ── */}
+            {insights.accuracy_by_difficulty.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-3">Questões por Dificuldade</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {(['easy', 'medium', 'hard'] as const).map((d) => {
+                    const row = insights.accuracy_by_difficulty.find(r => r.difficulty === d);
+                    const label = d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : 'Difícil';
+                    const icon  = d === 'easy' ? '🟢' : d === 'medium' ? '🟡' : '🔴';
+                    const colorBar = d === 'easy' ? 'bg-green-500' : d === 'medium' ? 'bg-yellow-500' : 'bg-red-500';
+                    return (
+                      <div key={d} className="p-5 rounded-xl border border-border bg-card space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-foreground">{icon} {label}</span>
+                          {row ? <AccuracyBadge value={row.accuracy_pct} /> : <span className="text-xs text-muted-foreground">—</span>}
+                        </div>
+                        {row ? (
+                          <>
+                            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${colorBar}`} style={{ width: `${row.accuracy_pct}%` }} />
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {row.correct} corretas de {row.total} questões ({row.accuracy_pct}%)
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-xs text-muted-foreground">Nenhuma questão respondida ainda</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* ── Per Exam Accuracy ── */}
             {insights.accuracy_by_exam.length > 0 && (
@@ -403,9 +444,10 @@ function DifficultyBadge({ value }: { value: string }) {
   const color = value === 'hard'   ? 'bg-red-500/10 text-red-400' :
                 value === 'medium' ? 'bg-yellow-500/10 text-yellow-400' :
                                      'bg-green-500/10 text-green-400';
+  const label = value === 'hard' ? 'Difícil' : value === 'medium' ? 'Médio' : 'Fácil';
   return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${color}`}>
-      {value}
+    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+      {label}
     </span>
   );
 }
