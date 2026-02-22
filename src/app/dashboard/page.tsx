@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { EXAM_LIST } from '@/config/exams';
 import CloudDojoLogo from '@/components/CloudDojoLogo';
 import ThemeToggle from '@/components/ThemeToggle';
+import { EvolutionChart } from '@/components/EvolutionChart';
+import { ExamRadarChart } from '@/components/ExamRadarChart';
 
 type InsightsData = {
   overall_accuracy:  number;
@@ -34,6 +36,21 @@ type InsightsData = {
     total:        number;
     correct:      number;
     accuracy_pct: number;
+  }>;
+  accuracy_evolution: Array<{
+    week_start:   string;
+    exam_name:    string;
+    total:        number;
+    correct:      number;
+    accuracy_pct: number;
+  }>;
+  spaced_repetition: Array<{
+    exam_name:       string;
+    topic:           string;
+    accuracy_pct:    number;
+    total:           number;
+    days_since_last: number;
+    last_practice:   string;
   }>;
   ai_quality: Array<{
     gemini_model_used: string;
@@ -85,9 +102,17 @@ export default function DashboardPage() {
             <CloudDojoLogo size="sm" />
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/simulado"
+              className="text-xs font-medium text-primary hover:underline transition-colors">
+              🚀 Simulado
+            </Link>
+            <Link href="/review"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              📋 Revisar Erros
+            </Link>
             <Link href="/admin/upload"
               className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Admin Upload
+              Admin
             </Link>
             <ThemeToggle />
             <div className="flex items-center gap-2">
@@ -122,6 +147,26 @@ export default function DashboardPage() {
           </div>
         ) : insights && (
           <>
+            {/* ── Spaced Repetition Alert ── */}
+            {insights.spaced_repetition.length > 0 && (
+              <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-400 text-base">🔁</span>
+                  <span className="text-sm font-semibold text-blue-400">Tópicos para revisar — não praticados há 3+ dias</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {insights.spaced_repetition.map((t, i) => (
+                    <Link key={i} href={`/exam/${t.exam_name}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-colors">
+                      <span className="text-xs text-blue-300 truncate max-w-[130px]">{t.topic}</span>
+                      <span className="text-xs text-orange-400 font-bold shrink-0">{t.days_since_last}d</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{t.accuracy_pct}%</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* ── Weak Topic Alert ── */}
             {(() => {
               const weak = insights.accuracy_by_topic.filter(t => t.accuracy_pct < 60 && t.total >= 3);
@@ -267,6 +312,18 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+
+            {/* ── Evolution Chart + Radar ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="p-5 rounded-xl border border-border bg-card">
+                <h2 className="text-sm font-semibold text-foreground mb-4">📈 Evolução de Acurácia (por semana)</h2>
+                <EvolutionChart data={insights.accuracy_evolution} />
+              </div>
+              <div className="p-5 rounded-xl border border-border bg-card">
+                <h2 className="text-sm font-semibold text-foreground mb-4">🕸 Comparação entre Provas</h2>
+                <ExamRadarChart data={insights.accuracy_by_exam} />
+              </div>
+            </div>
 
             {/* ── Start Exam Buttons ── */}
             <div>

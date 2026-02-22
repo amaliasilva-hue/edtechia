@@ -48,6 +48,23 @@ type DifficultyRow = {
   accuracy_pct: number;
 };
 
+type EvolutionRow = {
+  week_start:   string;
+  exam_name:    string;
+  total:        number;
+  correct:      number;
+  accuracy_pct: number;
+};
+
+type SpacedRepRow = {
+  exam_name:        string;
+  topic:            string;
+  accuracy_pct:     number;
+  total:            number;
+  days_since_last:  number;
+  last_practice:    string;
+};
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -177,17 +194,54 @@ export async function GET() {
       { email: userEmail }
     );
 
+    // ── Accuracy evolution by week ──────────────────────────────────────────
+    const accuracyEvolution = await runQuery<EvolutionRow>(
+      `SELECT
+         FORMAT_DATE('%Y-%m-%d', DATE_TRUNC(DATE(timestamp), WEEK(MONDAY))) AS week_start,
+         exam_name,
+         COUNT(*) AS total,
+         COUNTIF(is_correct = TRUE) AS correct,
+         ROUND(COUNTIF(is_correct = TRUE) / COUNT(*) * 100, 1) AS accuracy_pct
+       FROM ${fqt}
+       WHERE user_email = @email
+       GROUP BY week_start, exam_name
+       ORDER BY week_start ASC`,
+      { email: userEmail }
+    );
+
+    // ── Spaced repetition: topics not practiced recently ────────────────────
+    const spacedRepetition = await runQuery<SpacedRepRow>(
+      `SELECT
+         exam_name,
+         topic,
+         ROUND(COUNTIF(is_correct = TRUE) / COUNT(*) * 100, 1) AS accuracy_pct,
+         COUNT(*) AS total,
+         DATE_DIFF(CURRENT_DATE(), DATE(MAX(timestamp)), DAY) AS days_since_last,
+         FORMAT_TIMESTAMP('%d/%m/%Y', MAX(timestamp)) AS last_practice
+       FROM ${fqt}
+       WHERE user_email = @email
+       GROUP BY exam_name, topic
+       HAVING days_since_last >= 3
+          AND accuracy_pct < 75
+          AND total >= 3
+       ORDER BY days_since_last DESC, accuracy_pct ASC
+       LIMIT 5`,
+      { email: userEmail }
+    );
+
     return NextResponse.json({
-      overall_accuracy:      overallAccuracy,
-      total_questions:       totalQuestions,
-      correct_answers:       correctAnswers,
-      avg_time_seconds:      timeRow?.avg_time_seconds ?? null,
-      total_timeouts:        Number(timeRow?.total_timeouts ?? 0),
-      accuracy_by_exam:      accuracyByExam,
-      accuracy_by_topic:     accuracyByTopic,
+      overall_accuracy:       overallAccuracy,
+      total_questions:        totalQuestions,
+      correct_answers:        correctAnswers,
+      avg_time_seconds:       timeRow?.avg_time_seconds ?? null,
+      total_timeouts:         Number(timeRow?.total_timeouts ?? 0),
+      accuracy_by_exam:       accuracyByExam,
+      accuracy_by_topic:      accuracyByTopic,
       accuracy_by_difficulty: accuracyByDifficulty,
-      ai_quality:            aiQuality,
-      recent_activity:       recentActivity,
+      accuracy_evolution:     accuracyEvolution,
+      spaced_repetition:      spacedRepetition,
+      ai_quality:             aiQuality,
+      recent_activity:        recentActivity,
     });
   } catch (err) {
     console.error('[insights] BigQuery query failed:', err);

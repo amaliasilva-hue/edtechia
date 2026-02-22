@@ -2,11 +2,9 @@
 // EdTechia — POST /api/generate-question
 // Pipeline:
 //   1. Validate input (exam_id, topic_id, difficulty)
-//   2. Lookup exam config from EXAMS_CONFIG (persona + technicalRules)
-//   3. Run BigQuery VECTOR_SEARCH to fetch top-3 RAG context chunks
-//   4. Build composite system prompt (base rules + exam persona + tech rules)
-//   5. Call Gemini with fallback chain (gemini-2.5-pro first)
-//   6. Return parsed JSON question + metadata
+//   2. Check server-side Question Bank → return instantly if available
+//   3. On cache miss: RAG → system prompt → Gemini
+//   4. Always trigger background bank refill after serving
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,6 +13,7 @@ import { authOptions } from '@/lib/auth';
 import { getBigQueryClient, BQ_TABLES } from '@/lib/bigquery';
 import { generateQuestionWithFallback } from '@/lib/vertexai';
 import { getExamConfig } from '@/config/exams';
+import { popFromBank, triggerRefillIfNeeded } from '@/lib/questionBank';
 
 export const runtime = 'nodejs';
 
@@ -26,101 +25,17 @@ type RequestBody = {
   seen_questions?: string[];  // dedup: snippets of already-shown questions
 };
 
-export async function POST(req: NextRequest) {
-  // ── Auth guard ────────────────────────────────────────────────────────────
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // ── Parse body ────────────────────────────────────────────────────────────
-  let body: RequestBody;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
-  const { exam_id, topic_id, difficulty = 'medium', session_id, seen_questions } = body;
-
-  if (!exam_id || !topic_id) {
-    return NextResponse.json({ error: 'exam_id and topic_id are required' }, { status: 400 });
-  }
-
-  // ── Lookup exam config ────────────────────────────────────────────────────
-  let examConfig;
-  try {
-    examConfig = getExamConfig(exam_id);
-  } catch {
-    return NextResponse.json({ error: `Unknown exam_id: ${exam_id}` }, { status: 400 });
-  }
-
-  const topic = examConfig.topics.find((t) => t.id === topic_id);
-  if (!topic) {
-    return NextResponse.json({ error: `Unknown topic_id: ${topic_id} for exam ${exam_id}` }, { status: 400 });
-  }
-
-  // ── Step 1: RAG — BigQuery VECTOR_SEARCH ─────────────────────────────────
-  const project    = process.env.GCP_PROJECT_ID!;
-  const dataset    = BQ_TABLES.dataset;
-  const embedModel = process.env.BQ_EMBEDDING_MODEL ?? `${project}.${dataset}.embedding_model`;
-  const bq         = getBigQueryClient();
-
-  const ragQuery = `
-    SELECT
-      base.content,
-      base.exam_name,
-      distance
-    FROM
-      VECTOR_SEARCH(
-        TABLE \`${project}.${dataset}.${BQ_TABLES.docs}\`,
-        'content_embedding',
-        (
-          SELECT ml_generate_embedding_result AS embedding
-          FROM ML.GENERATE_EMBEDDING(
-            MODEL \`${embedModel}\`,
-            (SELECT @topic_text AS content)
-          )
-          LIMIT 1
-        ),
-        top_k => 3,
-        distance_type => 'COSINE'
-      )
-    WHERE base.exam_name = @exam_name
-    ORDER BY distance ASC
-  `;
-
-  let ragChunks: string[] = [];
-
-  try {
-    const [job] = await bq.createQueryJob({
-      query: ragQuery,
-      useLegacySql: false,
-      params: {
-        topic_text: topic.name,
-        exam_name:  examConfig.id,
-      },
-      location: process.env.BQ_LOCATION ?? 'US',
-    });
-    const [rows] = await job.getQueryResults();
-    ragChunks = (rows as Array<{ content: string }>).map((r) => r.content);
-    console.log(`[generate-question] RAG returned ${ragChunks.length} chunks`);
-  } catch (err) {
-    console.warn('[generate-question] VECTOR_SEARCH failed (no docs ingested yet?), continuing without RAG:', err);
-    // Non-fatal: continue without RAG context
-  }
-
-  const ragContext = ragChunks.length > 0
-    ? ragChunks.join('\n\n---\n\n')
-    : '(No reference material ingested yet for this exam. Generate a canonical question based on your training data.)';
-
-  // ── Step 2: Build system prompt ───────────────────────────────────────────
-  //
-  // Structure:
-  //   [BASE EXAMINER RULES — universal for all exams]
-  //   [EXAM PERSONA — from examConfig.persona]
-  //   [EXAM TECHNICAL RULES — from examConfig.technicalRules]
-  //   [OUTPUT FORMAT — strict JSON schema]
+// ─── Prompt builder (pure function — also called by the bank refiller) ────────
+function buildPrompts(params: {
+  examTitle:      string;
+  persona:        string;
+  technicalRules: string;
+  topicName:      string;
+  difficulty:     string;
+  ragContext:     string;
+  seen_questions?: string[];
+}): { systemPrompt: string; userPrompt: string } {
+  const { examTitle, persona, technicalRules, topicName, difficulty, ragContext, seen_questions } = params;
 
   const DIFFICULTY_LABEL: Record<string, string> = {
     easy:   'Associate level — foundational knowledge',
@@ -129,9 +44,9 @@ export async function POST(req: NextRequest) {
   };
 
   const systemPrompt = `
-You are a Level 5 Examiner for the ${examConfig.title} certification.
+You are a Level 5 Examiner for the ${examTitle} certification.
 Your objective: generate ONE forensic, scenario-based multiple-choice question
-focusing on the topic "${topic.name}" at ${difficulty.toUpperCase()} level (${DIFFICULTY_LABEL[difficulty]}).
+focusing on the topic "${topicName}" at ${difficulty.toUpperCase()} level (${DIFFICULTY_LABEL[difficulty] ?? difficulty}).
 
 ════════════════════════════════════════════════════════════
 §1  KNOWLEDGE USAGE — RAG AS BLUEPRINT, NOT A JAIL
@@ -161,12 +76,12 @@ focusing on the topic "${topic.name}" at ${difficulty.toUpperCase()} level (${DI
 ════════════════════════════════════════════════════════════
 §2  EXAM PERSONA
 ════════════════════════════════════════════════════════════
-${examConfig.persona}
+${persona}
 
 ════════════════════════════════════════════════════════════
 §3  EXAM-SPECIFIC TECHNICAL RULES
 ════════════════════════════════════════════════════════════
-${examConfig.technicalRules}
+${technicalRules}
 
 ════════════════════════════════════════════════════════════
 §4  UNIVERSAL MANDATORY RULES (violation = rejected output)
@@ -214,24 +129,18 @@ The required type depends on the difficulty level:
             based on scenario:
 
 5a. WHEN TO USE TYPE "mermaid" (hard/medium):
-    If the scenario involves: network routing, VPC peering/Service Controls,
-    Kubernetes cluster topology, Load Balancer setup, multi-region architecture,
-    Cloud Interconnect, or any infrastructure diagram — generate a valid
-    Mermaid.js graph string showing the CURRENT BROKEN or QUESTIONABLE state.
-    The diagram must show the problem (e.g. missing route, wrong firewall,
-    unreachable subnet) WITHOUT revealing the fix. Use graph TD or sequenceDiagram.
+    Network routing, VPC peering/Service Controls, Kubernetes cluster topology,
+    Load Balancer setup, multi-region architecture, Cloud Interconnect.
+    Generate a valid Mermaid.js graph showing the CURRENT BROKEN state.
+    use graph TD or sequenceDiagram.
 
 5b. WHEN TO USE TYPE "terminal" (hard/medium):
-    If the scenario involves: a CLI command, gcloud/kubectl output, firewall
-    rule listing, Cloud Logging output, or any text the user would see in a
-    terminal — generate a realistic terminal output snippet (fake but plausible
-    log lines, exit codes, error messages).
-    Show the BROKEN state (e.g. 502 error, permission denied, timeout).
+    CLI command, gcloud/kubectl output, Cloud Logging output, firewall rules.
+    Show the BROKEN state (502 error, permission denied, timeout).
 
 Current difficulty: ${difficulty.toUpperCase()}
 
-CRITICAL: visual_context is the FORENSIC EVIDENCE of the problem.
-          It must never hint at or reveal the correct answer option.
+CRITICAL: visual_context must never reveal the correct answer.
 
 ════════════════════════════════════════════════════════════
 §7  DEDUPLICATION — DO NOT REPEAT QUESTIONS
@@ -266,30 +175,147 @@ The response must be parseable by JSON.parse() with zero preprocessing.
 }
 `.trim();
 
-  const userPrompt = `Generate one ${difficulty} question for the topic: "${topic.name}" on the ${examConfig.title} certification exam.`;
+  const userPrompt = `Generate one ${difficulty} question for the topic: "${topicName}" on the ${examTitle} certification exam.`;
+  return { systemPrompt, userPrompt };
+}
 
-  // ── Step 3: Generate with Gemini fallback chain ───────────────────────────
-  let result;
+// ─── RAG helper ───────────────────────────────────────────────────────────────
+async function fetchRagChunks(
+  examId: string,
+  topicName: string,
+): Promise<string[]> {
+  const project    = process.env.GCP_PROJECT_ID!;
+  const dataset    = BQ_TABLES.dataset;
+  const embedModel = process.env.BQ_EMBEDDING_MODEL ?? `${project}.${dataset}.embedding_model`;
+  const bq         = getBigQueryClient();
+
+  const ragQuery = `
+    SELECT base.content, base.exam_name, distance
+    FROM VECTOR_SEARCH(
+      TABLE \`${project}.${dataset}.${BQ_TABLES.docs}\`,
+      'content_embedding',
+      (
+        SELECT ml_generate_embedding_result AS embedding
+        FROM ML.GENERATE_EMBEDDING(
+          MODEL \`${embedModel}\`,
+          (SELECT @topic_text AS content)
+        )
+        LIMIT 1
+      ),
+      top_k => 3,
+      distance_type => 'COSINE'
+    )
+    WHERE base.exam_name = @exam_name
+    ORDER BY distance ASC
+  `;
+
   try {
-    result = await generateQuestionWithFallback(systemPrompt, userPrompt);
-  } catch (err) {
-    console.error('[generate-question] All Gemini models failed:', err);
-    return NextResponse.json(
-      { error: 'AI generation failed', detail: err instanceof Error ? err.message : String(err) },
-      { status: 502 }
-    );
+    const [job] = await bq.createQueryJob({
+      query: ragQuery,
+      useLegacySql: false,
+      params: { topic_text: topicName, exam_name: examId },
+      location: process.env.BQ_LOCATION ?? 'US',
+    });
+    const [rows] = await job.getQueryResults();
+    return (rows as Array<{ content: string }>).map((r) => r.content);
+  } catch {
+    return [];
+  }
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // ── Response ──────────────────────────────────────────────────────────────
+  let body: RequestBody;
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }); }
+
+  const { exam_id, topic_id, difficulty = 'medium', session_id, seen_questions } = body;
+
+  if (!exam_id || !topic_id) {
+    return NextResponse.json({ error: 'exam_id and topic_id are required' }, { status: 400 });
+  }
+
+  let examConfig;
+  try { examConfig = getExamConfig(exam_id); }
+  catch { return NextResponse.json({ error: `Unknown exam_id: ${exam_id}` }, { status: 400 }); }
+
+  const topic = examConfig.topics.find((t) => t.id === topic_id);
+  if (!topic) {
+    return NextResponse.json({ error: `Unknown topic_id: ${topic_id}` }, { status: 400 });
+  }
+
+  // ── Try the question bank first ────────────────────────────────────────────
+  const banked = popFromBank(exam_id, topic_id, difficulty);
+
+  let resultQuestion: { question: import('@/lib/vertexai').GeneratedQuestion; modelUsed: string; generatedAt: number } | undefined;
+  let fromBank = false;
+
+  if (banked) {
+    // ✅ Instant response from bank
+    fromBank = true;
+    resultQuestion = banked;
+    console.log('[generate-question] Served from bank ✅');
+  } else {
+    // ❌ Bank miss — generate on-demand
+    console.log('[generate-question] Bank miss — generating on demand…');
+    const ragChunks = await fetchRagChunks(exam_id, topic.name);
+    const ragContext = ragChunks.length > 0
+      ? ragChunks.join('\n\n---\n\n')
+      : '(No reference material ingested yet. Generate a canonical question based on training data.)';
+
+    const { systemPrompt, userPrompt } = buildPrompts({
+      examTitle:      examConfig.title,
+      persona:        examConfig.persona,
+      technicalRules: examConfig.technicalRules,
+      topicName:      topic.name,
+      difficulty,
+      ragContext,
+      seen_questions,
+    });
+
+    try {
+      const r = await generateQuestionWithFallback(systemPrompt, userPrompt);
+      resultQuestion = { question: r.question, modelUsed: r.modelUsed, generatedAt: Date.now() };
+    } catch (err) {
+      console.error('[generate-question] All Gemini models failed:', err);
+      return NextResponse.json(
+        { error: 'AI generation failed', detail: err instanceof Error ? err.message : String(err) },
+        { status: 502 }
+      );
+    }
+  }
+
+  // ── Always trigger background refill ──────────────────────────────────────
+  triggerRefillIfNeeded(exam_id, topic_id, difficulty, () => {
+    // This closure is called inside the bank refiller — fetch RAG lazily
+    // We pass a simple prompt without seen_questions (bank questions are generic)
+    const ragContext = '(Bank refill — generate a canonical question based on training data.)';
+    return buildPrompts({
+      examTitle:      examConfig.title,
+      persona:        examConfig.persona,
+      technicalRules: examConfig.technicalRules,
+      topicName:      topic.name,
+      difficulty,
+      ragContext,
+    });
+  });
+
   return NextResponse.json({
     exam_id,
-    exam_title:    examConfig.title,
+    exam_title:      examConfig.title,
     topic_id,
-    topic_name:    topic.name,
+    topic_name:      topic.name,
     difficulty,
-    session_id:    session_id ?? null,
-    question:      result.question,
-    model_used:    result.modelUsed,
-    rag_chunks_used: ragChunks.length,
+    session_id:      session_id ?? null,
+    question:        resultQuestion!.question,
+    model_used:      resultQuestion!.modelUsed,
+    rag_chunks_used: fromBank ? 0 : -1, // -1 = on-demand, 0 = from bank
+    from_bank:       fromBank,
   });
 }
+
